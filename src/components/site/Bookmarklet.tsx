@@ -5,8 +5,12 @@ import { Gamepad2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import "@/components/ui/8bit/styles/retro.css";
 
-function buildHref(origin: string) {
-  const loader = `(function(){var s=document.createElement('script');s.src='${origin}/bookmarklet.js?t='+Date.now();document.body.appendChild(s);})();`;
+function buildHref(origin: string, slug?: string) {
+  const safe = slug && /^[a-z0-9-]+$/.test(slug) ? slug : "";
+  const setGame = safe
+    ? `window.__webcade_game='${safe}';`
+    : "";
+  const loader = `(function(){${setGame}var s=document.createElement('script');s.src='${origin}/bookmarklet.js?t='+Date.now();document.body.appendChild(s);})();`;
   return "javascript:" + loader;
 }
 
@@ -16,18 +20,20 @@ export function BookmarkletLink({
   className = "",
   children,
   variant = "solid",
+  slug,
 }: {
   className?: string;
   children?: React.ReactNode;
   variant?: Variant;
+  slug?: string;
 }) {
   const ref = useRef<HTMLAnchorElement>(null);
 
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    el.setAttribute("href", buildHref(window.location.origin));
-  }, []);
+    el.setAttribute("href", buildHref(window.location.origin, slug));
+  }, [slug]);
 
   const solid = variant === "solid";
   const surface = solid
