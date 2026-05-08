@@ -34,6 +34,7 @@ export type GameAPI = {
 export type GameModule = {
   slug: string;
   name: string;
+  hue: number;
   hud: Array<{ key: string; label: string; initial: string }>;
   init: (api: GameAPI) => { step: (dt: number) => void };
 };
@@ -308,12 +309,80 @@ export function startRuntime(game: GameModule) {
 
   const { step } = game.init(api);
 
+  const COUNTDOWN_TOTAL = 3.5;
+  let countdownLeft = COUNTDOWN_TOTAL;
+  const accent = `hsl(${game.hue} 78% 60%)`;
+
+  function drawCountdown(remaining: number) {
+    let text: string;
+    let beatStart: number;
+    let beatLen: number;
+    let isGo = false;
+    if (remaining > 2.5) {
+      text = "3";
+      beatStart = 0;
+      beatLen = 1;
+    } else if (remaining > 1.5) {
+      text = "2";
+      beatStart = 1;
+      beatLen = 1;
+    } else if (remaining > 0.5) {
+      text = "1";
+      beatStart = 2;
+      beatLen = 1;
+    } else {
+      text = "GO!";
+      beatStart = 3;
+      beatLen = 0.5;
+      isGo = true;
+    }
+    const elapsedInBeat = COUNTDOWN_TOTAL - remaining - beatStart;
+    const beatProgress = Math.max(0, Math.min(1, elapsedInBeat / beatLen));
+
+    const baseScale = 0.55 + Math.min(1, beatProgress * 3) * 0.45;
+    const pulse = Math.sin(beatProgress * Math.PI) * 0.08;
+    const scale = baseScale + pulse;
+    const alpha = beatProgress < 0.7 ? 1 : Math.max(0, (1 - beatProgress) / 0.3);
+
+    ctx.save();
+    ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.translate(W / 2, H / 2);
+    ctx.scale(scale, scale);
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.shadowColor = accent;
+    ctx.shadowBlur = isGo ? 36 : 24;
+    ctx.fillStyle = isGo ? accent : `rgba(255, 255, 255, ${alpha})`;
+    if (isGo) ctx.globalAlpha = alpha;
+    ctx.font = `900 ${isGo ? 120 : 160}px ui-sans-serif, system-ui, -apple-system, sans-serif`;
+    ctx.fillText(text, 0, 0);
+    ctx.restore();
+
+    if (!isGo) {
+      ctx.save();
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 0.55})`;
+      ctx.font = "600 13px ui-sans-serif, system-ui, sans-serif";
+      ctx.fillText("READY", W / 2, H / 2 + 110);
+      ctx.restore();
+    }
+  }
+
   function loop() {
     const now = performance.now();
     const dt = Math.min(0.05, (now - lastTime) / 1000);
     lastTime = now;
     try {
-      step(dt);
+      if (countdownLeft > 0) {
+        step(0);
+        drawCountdown(countdownLeft);
+        countdownLeft -= dt;
+      } else {
+        step(dt);
+      }
     } catch (err) {
       console.error("[webcade]", err);
       cleanup();

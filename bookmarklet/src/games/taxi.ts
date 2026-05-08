@@ -6,6 +6,7 @@ type Obstacle = Rect & { tag: Tag };
 export const taxi: GameModule = {
   slug: "page-taxi",
   name: "Page Taxi",
+  hue: 30,
   hud: [
     { key: "score", label: "Score", initial: "0" },
     { key: "fares", label: "Fares", initial: "0" },

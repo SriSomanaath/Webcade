@@ -16,6 +16,7 @@ type Bullet = { x: number; y: number; vy: number };
 export const raiders: GameModule = {
   slug: "page-raiders",
   name: "Page Raiders",
+  hue: 270,
   hud: [
     { key: "score", label: "Score", initial: "0" },
     { key: "wave", label: "Wave", initial: "1" },

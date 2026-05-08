@@ -7,6 +7,7 @@ type Cell = { c: number; r: number };
 export const snake: GameModule = {
   slug: "snake",
   name: "Page Snake",
+  hue: 140,
   hud: [
     { key: "score", label: "Score", initial: "0" },
     { key: "length", label: "Length", initial: "4" },

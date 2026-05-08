@@ -5,6 +5,7 @@ type Pop = { rect: Rect; expires: number; bornAt: number };
 export const whack: GameModule = {
   slug: "whack-the-page",
   name: "Whack the Page",
+  hue: 45,
   hud: [
     { key: "score", label: "Score", initial: "0" },
     { key: "combo", label: "Combo", initial: "0" },

@@ -5,6 +5,7 @@ type Brick = Rect & { alive: boolean };
 export const brickout: GameModule = {
   slug: "brickout",
   name: "Brickout",
+  hue: 350,
   hud: [
     { key: "score", label: "Score", initial: "0" },
     { key: "bricks", label: "Bricks", initial: "0" },
