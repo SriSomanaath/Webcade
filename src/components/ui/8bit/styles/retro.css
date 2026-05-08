@@ -1,0 +1,16 @@
+.retro {
+  font-family:
+    var(--font-pixel),
+    "Press Start 2P",
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
+  letter-spacing: 0.5px;
+  line-height: 1.5;
+}
+
+.pixelated {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
