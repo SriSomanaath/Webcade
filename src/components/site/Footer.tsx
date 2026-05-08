@@ -1,4 +1,5 @@
 import { ArrowUpRight } from "lucide-react";
+import { GitHubStar } from "./GitHubStar";
 
 export function Footer() {
   return (
@@ -30,6 +31,7 @@ export function Footer() {
                 X / @SriNath693
                 <ArrowUpRight className="h-3 w-3" aria-hidden />
               </a>
+              <GitHubStar className="!px-4" />
             </div>
           </div>
 
