@@ -7,6 +7,7 @@
 A tiny browser bookmarklet that turns any webpage into a playable Brickout level. Drag, click, the page is a level.
 
 [![Stars](https://img.shields.io/github/stars/SriSomanaath/Webcade?style=for-the-badge&logo=github&color=000)](https://github.com/SriSomanaath/Webcade/stargazers)
+[![License: MIT](https://img.shields.io/badge/license-MIT-000?style=for-the-badge)](./LICENSE)
 [![Next.js](https://img.shields.io/badge/Next.js-16-000?style=for-the-badge&logo=next.js)](https://nextjs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178c6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Made by SriNath](https://img.shields.io/badge/made_by-SriNath-000?style=for-the-badge)](https://srisomanaathdev.vercel.app/)
@@ -113,6 +114,14 @@ public/
 - **CSP**: many sites (GitHub, Google, banks) ship a Content Security Policy that blocks injected scripts. The bookmarklet works on Wikipedia, blogs, news, most docs, and `/play/demo`. It silently fails on strictly-CSP'd sites.
 - **Mobile**: not supported. Bookmarklet bars + touch controls don't mix.
 - **First load**: the GitHub star count is fetched server-side and cached for 1 hour, so the first uncached render of the homepage may take ~500 ms.
+
+## Contributing
+
+Issues and pull requests are welcome — see [CONTRIBUTING.md](./CONTRIBUTING.md) for setup, code style, commit conventions, and a quick guide to adding a new game.
+
+## License
+
+[MIT](./LICENSE) © 2026 SriNath. You're free to use, fork, modify, and distribute Webcade. The MIT license requires that the copyright notice and permission notice be included in copies or substantial portions of the software.
 
 ## Built by
 
