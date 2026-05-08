@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ArrowUpRight, Heart } from "lucide-react";
+import { TreasureChest } from "./pixel-sprites";
 
 const TIP_URL = "https://dodo.pe/webcade-tip";
 
@@ -27,7 +28,8 @@ export function SponsorCTA() {
           style={{ background: "hsl(45 85% 55%)" }}
         />
 
-        <div className="grid gap-8 md:grid-cols-[1fr_auto] md:items-end">
+        <div className="grid gap-8 md:grid-cols-[auto_1fr_auto] md:items-end">
+          <TreasureChest size={92} className="hidden md:block" />
           <div>
             <p
               className="retro inline-flex items-center gap-2 text-[10px] tracking-wider uppercase"

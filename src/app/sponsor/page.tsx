@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowLeft, ArrowUpRight, Heart } from "lucide-react";
 import { Nav } from "@/components/site/Nav";
 import { Footer } from "@/components/site/Footer";
+import { TreasureChest } from "@/components/site/pixel-sprites";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -118,7 +119,7 @@ export default function SponsorPage() {
 
         <section className="mx-auto max-w-4xl px-6 pb-12">
           <div
-            className="relative border-4 border-dashed border-foreground/30 p-8"
+            className="relative grid gap-8 border-4 border-dashed border-foreground/30 p-8 sm:grid-cols-[1fr_auto] sm:items-center"
             style={{
               background: "hsl(45 85% 55% / 0.06)",
             }}
@@ -128,33 +129,36 @@ export default function SponsorPage() {
               className="pointer-events-none absolute inset-x-0 top-0 h-1.5"
               style={{ background: "hsl(45 85% 55%)" }}
             />
-            <p
-              className="retro text-[10px] tracking-wider uppercase"
-              style={{ color: "hsl(45 85% 55%)" }}
-            >
-              Tip Jar · One-time
-            </p>
-            <h2 className="retro mt-3 text-2xl leading-snug sm:text-3xl">
-              Pay what you want
-            </h2>
-            <p className="mt-4 max-w-xl text-foreground/80">
-              Drop any amount you like — $1 or $50, your call. Single charge,
-              no recurring billing.
-            </p>
-            <div className="mt-8">
-              <a
-                href={tip.url}
-                target="_blank"
-                rel="noreferrer"
-                className="retro inline-flex items-center gap-2 border-2 border-foreground bg-foreground px-5 py-3 text-[10px] tracking-wider uppercase text-background transition active:translate-y-[2px] hover:opacity-90"
-                style={{
-                  filter: "drop-shadow(4px 4px 0 hsl(45 85% 55%))",
-                }}
+            <div>
+              <p
+                className="retro text-[10px] tracking-wider uppercase"
+                style={{ color: "hsl(45 85% 55%)" }}
               >
-                Drop a coin
-                <ArrowUpRight className="h-3 w-3" aria-hidden />
-              </a>
+                Tip Jar · One-time
+              </p>
+              <h2 className="retro mt-3 text-2xl leading-snug sm:text-3xl">
+                Pay what you want
+              </h2>
+              <p className="mt-4 max-w-xl text-foreground/80">
+                Drop any amount you like — $1 or $50, your call. Single charge,
+                no recurring billing.
+              </p>
+              <div className="mt-8">
+                <a
+                  href={tip.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="retro inline-flex items-center gap-2 border-2 border-foreground bg-foreground px-5 py-3 text-[10px] tracking-wider uppercase text-background transition active:translate-y-[2px] hover:opacity-90"
+                  style={{
+                    filter: "drop-shadow(4px 4px 0 hsl(45 85% 55%))",
+                  }}
+                >
+                  Drop a coin
+                  <ArrowUpRight className="h-3 w-3" aria-hidden />
+                </a>
+              </div>
             </div>
+            <TreasureChest size={140} className="mx-auto sm:mx-0" />
           </div>
         </section>
 

@@ -4,6 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import { Nav } from "@/components/site/Nav";
 import { Footer } from "@/components/site/Footer";
 import { BookmarkletLink } from "@/components/site/Bookmarklet";
+import { GameSprite } from "@/components/site/pixel-sprites";
 import { Progress } from "@/components/ui/8bit/progress";
 import { games, gameBySlug } from "@/lib/games";
 import type { Metadata } from "next";
@@ -64,27 +65,40 @@ export default async function GamePage({
               All games
             </Link>
 
-            <p
-              className="retro mt-8 inline-flex items-center gap-2 text-[10px] tracking-wider uppercase"
-              style={{ color: accent }}
-            >
-              <span
-                aria-hidden
-                className="inline-block h-2.5 w-2.5"
-                style={{ background: accent, boxShadow: `0 0 12px ${accent}` }}
-              />
-              Cabinet · {game.slug}
-            </p>
+            <div className="mt-8 grid gap-6 sm:grid-cols-[auto_1fr] sm:items-start">
+              <div
+                className="border-4 border-foreground/20 p-3"
+                style={{ background: `hsl(${game.hue} 78% 55% / 0.08)` }}
+              >
+                <GameSprite slug={game.slug} hue={game.hue} size={120} />
+              </div>
+              <div>
+                <p
+                  className="retro inline-flex items-center gap-2 text-[10px] tracking-wider uppercase"
+                  style={{ color: accent }}
+                >
+                  <span
+                    aria-hidden
+                    className="inline-block h-2.5 w-2.5"
+                    style={{
+                      background: accent,
+                      boxShadow: `0 0 12px ${accent}`,
+                    }}
+                  />
+                  Cabinet · {game.slug}
+                </p>
 
-            <h1 className="retro mt-3 text-balance text-3xl leading-snug sm:text-4xl">
-              {game.name}
-            </h1>
-            <p className="mt-6 max-w-2xl text-balance text-base text-muted-foreground sm:text-lg">
-              {game.tagline}
-            </p>
-            <p className="mt-3 max-w-2xl text-base text-foreground/80">
-              {game.description}
-            </p>
+                <h1 className="retro mt-3 text-balance text-3xl leading-snug sm:text-4xl">
+                  {game.name}
+                </h1>
+                <p className="mt-6 max-w-2xl text-balance text-base text-muted-foreground sm:text-lg">
+                  {game.tagline}
+                </p>
+                <p className="mt-3 max-w-2xl text-base text-foreground/80">
+                  {game.description}
+                </p>
+              </div>
+            </div>
 
             <div className="mt-10 flex flex-col items-start gap-3">
               <span
