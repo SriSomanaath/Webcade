@@ -47,10 +47,62 @@ export function Hero() {
             </Link>
           </div>
           <p className="text-xs text-muted-foreground">
-            Drag the dark button to your bookmarks bar — or click it now to play
-            this page.
+            Or jump to{" "}
+            <Link
+              href="#how"
+              className="underline underline-offset-4 hover:text-foreground"
+            >
+              the full how-to
+            </Link>
+            .
           </p>
         </div>
+
+        <ol className="mt-2 grid w-full max-w-3xl gap-3 text-left sm:grid-cols-3">
+          {(
+            [
+              {
+                n: "01",
+                hue: 350,
+                title: "Drag",
+                body: "Drag the Get Webcade button up to your bookmarks bar.",
+              },
+              {
+                n: "02",
+                hue: 140,
+                title: "Open",
+                body: "Visit any webpage you want to play with.",
+              },
+              {
+                n: "03",
+                hue: 270,
+                title: "Click",
+                body: "Click the bookmark — the page becomes a game.",
+              },
+            ] as const
+          ).map((step) => (
+            <li
+              key={step.n}
+              className="flex items-start gap-3 border-2 border-dashed border-foreground/30 bg-background px-3 py-3"
+            >
+              <span
+                aria-hidden
+                className="retro grid h-7 w-7 shrink-0 place-items-center text-[9px] text-background"
+                style={{ background: `hsl(${step.hue} 78% 55%)` }}
+              >
+                {step.n}
+              </span>
+              <span className="flex flex-col">
+                <span className="retro text-[10px] tracking-wider uppercase">
+                  {step.title}
+                </span>
+                <span className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                  {step.body}
+                </span>
+              </span>
+            </li>
+          ))}
+        </ol>
 
         <div className="retro mt-6 inline-flex flex-wrap items-center justify-center gap-x-2 gap-y-1 border-2 border-dashed border-foreground/40 px-4 py-2 text-[9px] tracking-wider uppercase">
           <span className="text-muted-foreground">Made by</span>
