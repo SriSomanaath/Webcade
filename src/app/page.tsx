@@ -6,6 +6,7 @@ import { WhySection } from "@/components/site/WhySection";
 import { BestPages } from "@/components/site/BestPages";
 import { FAQ } from "@/components/site/FAQ";
 import { Footer } from "@/components/site/Footer";
+import { SponsorCTA } from "@/components/site/SponsorCTA";
 
 export default function Home() {
   return (
@@ -16,6 +17,7 @@ export default function Home() {
         <HowItWorks />
         <GameGrid />
         <WhySection />
+        <SponsorCTA />
         <BestPages />
         <FAQ />
       </main>

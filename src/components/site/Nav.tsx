@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { BookmarkletLink } from "./Bookmarklet";
 import { GitHubStar } from "./GitHubStar";
+import { SponsorButton } from "./SponsorButton";
+import { ThemeToggle } from "./ThemeToggle";
 
 export function Nav() {
   return (
@@ -34,7 +36,9 @@ export function Nav() {
           >
             by SriNath →
           </a>
-          <GitHubStar />
+          <ThemeToggle />
+          <SponsorButton />
+          <GitHubStar className="hidden sm:inline-flex" />
           <BookmarkletLink className="!px-3 !py-2 text-[9px]">
             Get it
           </BookmarkletLink>
