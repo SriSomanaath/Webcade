@@ -22,6 +22,7 @@ export const raiders: GameModule = {
     { key: "wave", label: "Wave", initial: "1" },
     { key: "lives", label: "Lives", initial: "3" },
   ],
+  consumedKeys: [" ", "arrowleft", "arrowright"],
   init(api) {
     const { ctx } = api;
     const WAVES = 3;
@@ -123,8 +124,8 @@ export const raiders: GameModule = {
       else if (e.key === "ArrowRight" && arrowDir === 1) arrowDir = 0;
     });
 
+    api.onPageChange(() => rebuildWords());
     api.onResize(() => {
-      rebuildWords();
       const W = api.W();
       const H = api.H();
       ship.y = H - 60;

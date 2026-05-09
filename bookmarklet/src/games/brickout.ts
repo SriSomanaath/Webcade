@@ -11,6 +11,7 @@ export const brickout: GameModule = {
     { key: "bricks", label: "Bricks", initial: "0" },
     { key: "lives", label: "Lives", initial: "3" },
   ],
+  consumedKeys: ["arrowleft", "arrowright", " "],
   init(api) {
     const { ctx } = api;
     const paddle = { w: 140, h: 14, x: 0, y: 0 };
@@ -63,8 +64,8 @@ export const brickout: GameModule = {
       }
     });
 
+    api.onPageChange(() => rebuildBricks());
     api.onResize(() => {
-      rebuildBricks();
       paddle.y = api.H() - 60;
       paddle.x = Math.max(0, Math.min(api.W() - paddle.w, paddle.x));
     });

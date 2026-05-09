@@ -12,6 +12,7 @@ export const taxi: GameModule = {
     { key: "fares", label: "Fares", initial: "0" },
     { key: "lives", label: "Lives", initial: "3" },
   ],
+  consumedKeys: ["arrowup", "arrowdown", "w", "s", " "],
   init(api) {
     const { ctx } = api;
     const SCROLL_SPEED = 220;
@@ -115,8 +116,8 @@ export const taxi: GameModule = {
       } else if (e.key === " " && (!alive || won)) reset();
     });
 
+    api.onPageChange(() => rebuild());
     api.onResize(() => {
-      rebuild();
       car.screenX = api.W() * 0.18;
       targetLane = Math.max(0, Math.min(LANES - 1, targetLane));
       car.y = laneCenterY(targetLane);

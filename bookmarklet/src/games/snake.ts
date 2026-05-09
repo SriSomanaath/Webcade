@@ -12,6 +12,17 @@ export const snake: GameModule = {
     { key: "score", label: "Score", initial: "0" },
     { key: "length", label: "Length", initial: "4" },
   ],
+  consumedKeys: [
+    "arrowup",
+    "arrowdown",
+    "arrowleft",
+    "arrowright",
+    "w",
+    "a",
+    "s",
+    "d",
+    " ",
+  ],
   init(api) {
     const { ctx } = api;
     const walls = new Set<string>();
@@ -129,9 +140,7 @@ export const snake: GameModule = {
       else if (e.key === " " && (!alive || won)) reset();
     });
 
-    api.onResize(() => {
-      rebuildWalls();
-    });
+    api.onPageChange(() => rebuildWalls());
 
     function step(dt: number) {
       const W = api.W();

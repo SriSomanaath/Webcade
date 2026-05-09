@@ -5,6 +5,7 @@ export type Rect = {
   h: number;
   hue: number;
   text?: string;
+  synthetic?: boolean;
 };
 
 export type BuildRectsOpts = {
@@ -27,6 +28,7 @@ export type GameAPI = {
     opts?: AddEventListenerOptions | boolean
   ) => void;
   onResize: (fn: () => void) => void;
+  onPageChange: (fn: () => void) => void;
   onCleanup: (fn: () => void) => void;
   buildPageRects: (opts?: BuildRectsOpts) => Rect[];
 };
@@ -36,6 +38,7 @@ export type GameModule = {
   name: string;
   hue: number;
   hud: Array<{ key: string; label: string; initial: string }>;
+  consumedKeys?: string[];
   init: (api: GameAPI) => { step: (dt: number) => void };
 };
 
@@ -43,21 +46,153 @@ const HOST_ID = "__webcade_host__";
 
 type HostEl = HTMLElement & { __cleanup?: () => void };
 
-function escapeHtml(s: string): string {
-  return s.replace(
-    /[&<>"']/g,
-    (c) =>
-      ({
-        "&": "&amp;",
-        "<": "&lt;",
-        ">": "&gt;",
-        '"': "&quot;",
-        "'": "&#39;",
-      })[c] as string
-  );
+const SCROLL_KEYS = new Set([
+  " ",
+  "pageup",
+  "pagedown",
+  "home",
+  "end",
+  "arrowup",
+  "arrowdown",
+  "arrowleft",
+  "arrowright",
+  "tab",
+]);
+
+const SYNTH_WORDS = [
+  "BOOM", "ZAP", "PIXEL", "RUN", "JUMP", "DASH", "STAR", "BLOCK",
+  "BRICK", "GLOW", "RAY", "DOT", "LOOP", "BYTE", "WAVE", "FLUX",
+  "CORE", "GLITCH", "ECHO", "SPARK", "BLITZ", "SPRITE", "WARP", "SCAN",
+  "PULSE", "ORBIT", "VOID", "NEON", "QUARK", "SHIFT",
+];
+
+const SHADOW_STYLE = `
+  :host { color-scheme: dark; }
+  .stage { position: fixed; inset: 0; background: rgba(8, 8, 12, 0.55); backdrop-filter: blur(2px); }
+  canvas { position: fixed; inset: 0; display: block; cursor: none; }
+  .hud {
+    position: fixed; top: 14px; left: 50%; transform: translateX(-50%);
+    display: flex; gap: 10px; align-items: center;
+    padding: 8px 10px 8px 14px; background: rgba(0,0,0,0.7);
+    border: 1px solid rgba(255,255,255,0.12); border-radius: 999px;
+    font: 600 13px ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    color: #fff; backdrop-filter: blur(8px);
+    max-width: calc(100vw - 24px);
+  }
+  .game-name { opacity: 0.7; padding-right: 8px; margin-right: 2px; border-right: 1px solid rgba(255,255,255,0.18); }
+  .pill { font-variant-numeric: tabular-nums; opacity: 0.85; white-space: nowrap; }
+  .pill b { color: #fff; opacity: 1; margin-left: 2px; }
+  .pill + .pill::before { content: "·"; margin-right: 10px; opacity: 0.4; }
+  button.exit {
+    all: unset; cursor: pointer; padding: 4px 12px; border-radius: 999px;
+    background: rgba(255,255,255,0.14); color: #fff; font: 600 12px ui-sans-serif, system-ui, sans-serif;
+  }
+  button.exit:hover { background: rgba(255,255,255,0.22); }
+  .toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+    padding: 8px 14px; background: rgba(0,0,0,0.65); color: #fff;
+    border-radius: 999px; font: 500 12px ui-sans-serif, system-ui, sans-serif;
+    opacity: 0; transition: opacity 0.4s ease; pointer-events: none; max-width: 80vw;
+  }
+  .toast.show { opacity: 1; }
+`;
+
+function buildShadowTree(
+  shadow: ShadowRoot,
+  game: GameModule
+): {
+  canvas: HTMLCanvasElement;
+  exitBtn: HTMLButtonElement;
+  toastEl: HTMLDivElement;
+  hudPills: Map<string, HTMLElement>;
+} {
+  const styleEl = document.createElement("style");
+  styleEl.textContent = SHADOW_STYLE;
+  shadow.appendChild(styleEl);
+
+  const stage = document.createElement("div");
+  stage.className = "stage";
+
+  const canvas = document.createElement("canvas");
+  stage.appendChild(canvas);
+
+  const hud = document.createElement("div");
+  hud.className = "hud";
+
+  const gameName = document.createElement("span");
+  gameName.className = "game-name";
+  gameName.textContent = game.name;
+  hud.appendChild(gameName);
+
+  const hudPills = new Map<string, HTMLElement>();
+  for (const h of game.hud) {
+    const pill = document.createElement("span");
+    pill.className = "pill";
+    pill.appendChild(document.createTextNode(`${h.label} `));
+    const stat = document.createElement("b");
+    stat.dataset.stat = h.key;
+    stat.textContent = h.initial;
+    pill.appendChild(stat);
+    hud.appendChild(pill);
+    hudPills.set(h.key, stat);
+  }
+
+  const exitBtn = document.createElement("button");
+  exitBtn.className = "exit";
+  exitBtn.type = "button";
+  exitBtn.textContent = "Exit (Esc)";
+  hud.appendChild(exitBtn);
+  stage.appendChild(hud);
+
+  const toastEl = document.createElement("div");
+  toastEl.className = "toast";
+  stage.appendChild(toastEl);
+
+  shadow.appendChild(stage);
+
+  return { canvas, exitBtn, toastEl, hudPills };
+}
+
+function generateSyntheticRects(
+  W: number,
+  H: number,
+  opts: BuildRectsOpts
+): Rect[] {
+  const cols = 12;
+  const colW = Math.floor(W / cols);
+  const rowH = 70;
+  const rows = Math.max(2, Math.floor((H - 40) / rowH));
+  const wantWords = opts.capture === "words";
+  const out: Rect[] = [];
+  let hue = 200;
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      if (Math.random() < 0.35) continue;
+      const x = c * colW + 8 + Math.floor(Math.random() * 6);
+      const y = r * rowH + 24 + Math.floor(Math.random() * 6);
+      const w = Math.max(20, colW - 16 - Math.floor(Math.random() * 16));
+      const h = 18 + Math.floor(Math.random() * 8);
+      const rect: Rect = { x, y, w, h, hue: hue % 360, synthetic: true };
+      if (wantWords) {
+        rect.text = SYNTH_WORDS[out.length % SYNTH_WORDS.length];
+      }
+      out.push(rect);
+      hue += 17;
+    }
+  }
+  return out;
 }
 
 export function startRuntime(game: GameModule) {
+  if (!document.body) {
+    document.addEventListener(
+      "DOMContentLoaded",
+      () => startRuntime(game),
+      { once: true }
+    );
+    return;
+  }
+
   const existing = document.getElementById(HOST_ID) as HostEl | null;
   if (existing) {
     const prevSlug = existing.dataset.game;
@@ -74,63 +209,9 @@ export function startRuntime(game: GameModule) {
   document.body.appendChild(host);
   const shadow = host.attachShadow({ mode: "open" });
 
-  const pillsHtml = game.hud
-    .map(
-      (h) =>
-        `<span class="pill">${escapeHtml(
-          h.label
-        )} <b data-stat="${escapeHtml(h.key)}">${escapeHtml(h.initial)}</b></span>`
-    )
-    .join("");
+  const { canvas, exitBtn, toastEl, hudPills } = buildShadowTree(shadow, game);
 
-  const root = document.createElement("div");
-  root.innerHTML = `
-    <style>
-      :host { color-scheme: dark; }
-      .stage { position: fixed; inset: 0; background: rgba(8, 8, 12, 0.55); backdrop-filter: blur(2px); }
-      canvas { position: fixed; inset: 0; display: block; cursor: none; }
-      .hud {
-        position: fixed; top: 14px; left: 50%; transform: translateX(-50%);
-        display: flex; gap: 10px; align-items: center;
-        padding: 8px 10px 8px 14px; background: rgba(0,0,0,0.7);
-        border: 1px solid rgba(255,255,255,0.12); border-radius: 999px;
-        font: 600 13px ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-        color: #fff; backdrop-filter: blur(8px);
-        max-width: calc(100vw - 24px);
-      }
-      .game-name { opacity: 0.7; padding-right: 8px; margin-right: 2px; border-right: 1px solid rgba(255,255,255,0.18); }
-      .pill { font-variant-numeric: tabular-nums; opacity: 0.85; white-space: nowrap; }
-      .pill b { color: #fff; opacity: 1; margin-left: 2px; }
-      .pill + .pill::before { content: "·"; margin-right: 10px; opacity: 0.4; }
-      button.exit {
-        all: unset; cursor: pointer; padding: 4px 12px; border-radius: 999px;
-        background: rgba(255,255,255,0.14); color: #fff; font: 600 12px ui-sans-serif, system-ui, sans-serif;
-      }
-      button.exit:hover { background: rgba(255,255,255,0.22); }
-      .toast {
-        position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
-        padding: 8px 14px; background: rgba(0,0,0,0.65); color: #fff;
-        border-radius: 999px; font: 500 12px ui-sans-serif, system-ui, sans-serif;
-        opacity: 0; transition: opacity 0.4s ease; pointer-events: none; max-width: 80vw;
-      }
-      .toast.show { opacity: 1; }
-    </style>
-    <div class="stage">
-      <canvas></canvas>
-      <div class="hud">
-        <span class="game-name">${escapeHtml(game.name)}</span>
-        ${pillsHtml}
-        <button class="exit" type="button">Exit (Esc)</button>
-      </div>
-      <div class="toast"></div>
-    </div>
-  `;
-  shadow.appendChild(root);
-
-  const canvas = shadow.querySelector("canvas") as HTMLCanvasElement;
   const ctx = canvas.getContext("2d") as CanvasRenderingContext2D;
-  const exitBtn = shadow.querySelector("button.exit") as HTMLButtonElement;
-  const toastEl = shadow.querySelector(".toast") as HTMLElement;
 
   let W = 0;
   let H = 0;
@@ -148,20 +229,27 @@ export function startRuntime(game: GameModule) {
 
   const cleanups: Array<() => void> = [];
   const resizeCallbacks: Array<() => void> = [];
+  const pageChangeCallbacks: Array<() => void> = [];
 
   function on<K extends keyof WindowEventMap>(
     type: K,
     fn: (e: WindowEventMap[K]) => void,
     opts?: AddEventListenerOptions | boolean
   ) {
-    window.addEventListener(type, fn as EventListener, opts);
+    let finalOpts: AddEventListenerOptions | boolean | undefined = opts;
+    if (finalOpts === undefined) {
+      if (type === "keydown" || type === "keyup") {
+        finalOpts = { capture: true };
+      }
+    }
+    window.addEventListener(type, fn as EventListener, finalOpts);
     cleanups.push(() =>
-      window.removeEventListener(type, fn as EventListener, opts)
+      window.removeEventListener(type, fn as EventListener, finalOpts)
     );
   }
 
   function setStat(key: string, value: string | number) {
-    const el = shadow.querySelector(`[data-stat="${CSS.escape(key)}"]`);
+    const el = hudPills.get(key);
     if (el) el.textContent = String(value);
   }
 
@@ -172,6 +260,10 @@ export function startRuntime(game: GameModule) {
     window.clearTimeout(toastTimer);
     toastTimer = window.setTimeout(() => toastEl.classList.remove("show"), ms);
   }
+
+  let lastRectCount = 0;
+  let syntheticToastShown = false;
+  let lastSynthetic = false;
 
   function buildPageRects(opts: BuildRectsOpts = {}): Rect[] {
     const minW = opts.minW ?? 14;
@@ -243,8 +335,30 @@ export function startRuntime(game: GameModule) {
         }
       }
     }
+
+    let totalArea = 0;
+    for (let i = 0; i < out.length; i++) totalArea += out[i].w * out[i].h;
+    const viewport = Math.max(1, W * H);
+    if (totalArea / viewport < 0.04) {
+      if (!syntheticToastShown) {
+        toast("no readable text — playing in arcade mode", 3200);
+        syntheticToastShown = true;
+      }
+      const synth = generateSyntheticRects(W, H, opts);
+      lastRectCount = synth.length;
+      lastSynthetic = true;
+      return synth;
+    }
+
+    lastRectCount = out.length;
+    lastSynthetic = false;
     return out;
   }
+
+  const consumed = new Set((game.consumedKeys ?? []).map((k) => k.toLowerCase()));
+  let rebuildCount = 0;
+  const debugEnabled =
+    typeof location !== "undefined" && /[?&]debug=1\b/.test(location.search);
 
   const api: GameAPI = {
     ctx,
@@ -256,6 +370,7 @@ export function startRuntime(game: GameModule) {
     toast,
     on,
     onResize: (fn) => resizeCallbacks.push(fn),
+    onPageChange: (fn) => pageChangeCallbacks.push(fn),
     onCleanup: (fn) => cleanups.push(fn),
     buildPageRects,
   };
@@ -269,17 +384,83 @@ export function startRuntime(game: GameModule) {
         // ignore
       }
     }
-  });
-  on(
-    "keydown",
-    (e) => {
-      if (e.key === "Escape") {
-        e.preventDefault();
-        cleanup();
+    for (const fn of pageChangeCallbacks) {
+      try {
+        fn();
+      } catch {
+        // ignore
       }
-    },
-    true
-  );
+    }
+  });
+
+  // Scroll-blockers (page can't scroll out from under the game)
+  const blockScroll = (e: Event) => e.preventDefault();
+  on("wheel", blockScroll, { passive: false, capture: true });
+  on("touchmove", blockScroll, { passive: false, capture: true });
+
+  // MutationObserver re-snapshot
+  let mutationCount = 0;
+  let mutationWindowStart = 0;
+  let rebuildScheduled: number | null = null;
+  let rebuildHandle: { kind: "ric" | "to"; id: number } | null = null;
+
+  function fireRebuild() {
+    rebuildScheduled = null;
+    rebuildHandle = null;
+    if (stopped) return;
+    rebuildCount++;
+    toast("page changed — rebuilding", 1400);
+    for (const fn of pageChangeCallbacks) {
+      try {
+        fn();
+      } catch {
+        // ignore
+      }
+    }
+  }
+
+  const mo = new MutationObserver((records) => {
+    let relevantCount = 0;
+    for (const r of records) {
+      if (!host.contains(r.target)) relevantCount++;
+    }
+    if (relevantCount === 0) return;
+    const now = performance.now();
+    if (now - mutationWindowStart > 200) {
+      mutationWindowStart = now;
+      mutationCount = 0;
+    }
+    mutationCount += relevantCount;
+    if (mutationCount > 5 && rebuildScheduled === null) {
+      rebuildScheduled = now;
+      const ric = (window as unknown as {
+        requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
+      }).requestIdleCallback;
+      if (typeof ric === "function") {
+        rebuildHandle = { kind: "ric", id: ric(fireRebuild, { timeout: 1500 }) };
+      } else {
+        rebuildHandle = { kind: "to", id: window.setTimeout(fireRebuild, 1500) };
+      }
+    }
+  });
+  try {
+    mo.observe(document.body, { childList: true, subtree: true });
+    cleanups.push(() => mo.disconnect());
+  } catch {
+    // ignore — page may not allow observation
+  }
+  cleanups.push(() => {
+    if (!rebuildHandle) return;
+    if (rebuildHandle.kind === "to") {
+      window.clearTimeout(rebuildHandle.id);
+    } else {
+      const cic = (window as unknown as {
+        cancelIdleCallback?: (id: number) => void;
+      }).cancelIdleCallback;
+      if (typeof cic === "function") cic(rebuildHandle.id);
+    }
+    rebuildHandle = null;
+  });
 
   function onExit() {
     cleanup();
@@ -303,11 +484,69 @@ export function startRuntime(game: GameModule) {
         // ignore
       }
     }
+    if (debugEnabled) {
+      try {
+        delete (window as unknown as { __webcade_debug?: unknown }).__webcade_debug;
+      } catch {
+        // ignore
+      }
+    }
     host.remove();
   }
   host.__cleanup = cleanup;
 
+  // Run game init first so its keydown/keyup listeners register before the master.
+  // Same target (window) + same phase (capture) → fire in registration order, so games run before master.
   const { step } = game.init(api);
+
+  // Master keydown: handles Esc, scroll-key suppression, game-key propagation guard.
+  on(
+    "keydown",
+    (e) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        cleanup();
+        return;
+      }
+      const key = e.key.toLowerCase();
+      if (SCROLL_KEYS.has(key)) e.preventDefault();
+      if (consumed.has(key)) e.stopPropagation();
+    },
+    true
+  );
+
+  // Visibility self-check 500ms after mount.
+  const visTimer = window.setTimeout(() => {
+    if (stopped) return;
+    const top = document.elementFromPoint(W / 2, H / 2);
+    if (top && top !== host && !host.contains(top)) {
+      toast("Another modal is on top — close it and re-open Webcade.", 5000);
+    }
+  }, 500);
+  cleanups.push(() => window.clearTimeout(visTimer));
+
+  if (debugEnabled) {
+    Object.defineProperty(window, "__webcade_debug", {
+      configurable: true,
+      enumerable: false,
+      writable: true,
+      value: {
+        get game() {
+          return game.slug;
+        },
+        get rectCount() {
+          return lastRectCount;
+        },
+        get rebuildCount() {
+          return rebuildCount;
+        },
+        get synthetic() {
+          return lastSynthetic;
+        },
+      },
+    });
+  }
 
   const COUNTDOWN_TOTAL = 3.5;
   let countdownLeft = COUNTDOWN_TOTAL;

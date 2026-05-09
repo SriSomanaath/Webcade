@@ -11,6 +11,7 @@ export const whack: GameModule = {
     { key: "combo", label: "Combo", initial: "0" },
     { key: "time", label: "Time", initial: "60" },
   ],
+  consumedKeys: [" "],
   init(api) {
     const { ctx } = api;
     const ROUND = 60;
@@ -89,7 +90,7 @@ export const whack: GameModule = {
       if (e.key === " " && !alive) reset();
     });
 
-    api.onResize(() => {
+    api.onPageChange(() => {
       rebuildWords();
       pops = [];
     });
