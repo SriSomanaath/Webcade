@@ -1,7 +1,15 @@
-import type { GameModule, Rect } from "../runtime";
+import type { GameModule } from "../runtime";
 
 type Tag = "obstacle" | "passenger" | "dropoff";
-type Obstacle = Rect & { tag: Tag };
+type Obstacle = {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  hue: number;
+  lane: number;
+  tag: Tag;
+};
 
 export const taxi: GameModule = {
   slug: "page-taxi",
@@ -20,6 +28,13 @@ export const taxi: GameModule = {
     const FARES_TO_WIN = 5;
     const car = { screenX: 0, y: 0, w: 60, h: 28 };
 
+    // Procedural-spawn parameters. Values are world pixels.
+    const SPAWN_STEP_MIN = 200;
+    const SPAWN_STEP_MAX = 420;
+    const INITIAL_OBSTACLES = 12;
+    const SAFE_START_DIST = 1400;
+    const RECYCLE_NO_REPEAT_LANES = 2;
+
     let obstacles: Obstacle[] = [];
     let cameraX = 0;
     let alive = true;
@@ -31,27 +46,89 @@ export const taxi: GameModule = {
     let hasPassenger = false;
     let lastDistTick = 0;
     let targetLane = Math.floor(LANES / 2);
+    let spawnCursor = 0;
+    const recentLanes: number[] = [];
+
+    function laneHeight() {
+      return api.H() / LANES;
+    }
 
     function laneCenterY(lane: number) {
-      const H = api.H();
-      const laneH = H / LANES;
-      return Math.floor(lane * laneH + laneH / 2 - car.h / 2);
+      const lh = laneHeight();
+      return Math.floor(lane * lh + lh / 2 - car.h / 2);
+    }
+
+    // Pick a lane that isn't in the recent-spawn window and avoids `forbidden`.
+    function pickLane(forbidden?: number): number {
+      const choices: number[] = [];
+      for (let l = 0; l < LANES; l++) {
+        if (forbidden !== undefined && l === forbidden) continue;
+        if (recentLanes.includes(l)) continue;
+        choices.push(l);
+      }
+      if (choices.length === 0) {
+        // recentLanes covers everything else — fall back to any non-forbidden lane.
+        for (let l = 0; l < LANES; l++) {
+          if (forbidden !== undefined && l === forbidden) continue;
+          choices.push(l);
+        }
+      }
+      if (choices.length === 0) {
+        for (let l = 0; l < LANES; l++) choices.push(l);
+      }
+      return choices[Math.floor(Math.random() * choices.length)];
+    }
+
+    function rememberLane(lane: number) {
+      recentLanes.push(lane);
+      while (recentLanes.length > RECYCLE_NO_REPEAT_LANES) recentLanes.shift();
+    }
+
+    function fillObstacle(o: Obstacle, lane: number, x: number) {
+      o.lane = lane;
+      o.x = x;
+      o.y = laneCenterY(lane);
+      o.w = 70 + Math.random() * 90;
+      o.h = Math.max(20, Math.floor(laneHeight() * 0.42));
+      o.hue = Math.floor(Math.random() * 360);
+    }
+
+    function makeObstacle(lane: number, x: number): Obstacle {
+      const o: Obstacle = {
+        x: 0, y: 0, w: 0, h: 0, hue: 0, lane: 0, tag: "obstacle",
+      };
+      fillObstacle(o, lane, x);
+      return o;
     }
 
     function recycle(o: Obstacle) {
       const W = api.W();
-      o.x = cameraX + W + Math.random() * 240;
-      const lane = Math.floor(Math.random() * LANES);
-      o.y = laneCenterY(lane) + (Math.random() * 18 - 9);
-      o.w = 40 + Math.random() * 130;
-      o.h = 18 + Math.random() * 12;
-      o.hue = (Math.random() * 360) | 0;
+      // Always spawn beyond the right edge with a healthy gap.
+      spawnCursor = Math.max(
+        spawnCursor +
+          SPAWN_STEP_MIN +
+          Math.random() * (SPAWN_STEP_MAX - SPAWN_STEP_MIN),
+        cameraX + W + 80
+      );
+      const lane = pickLane();
+      rememberLane(lane);
+      fillObstacle(o, lane, spawnCursor);
     }
 
     function pickNonSpecial(): Obstacle | null {
-      const cands = obstacles.filter((o) => o.tag === "obstacle");
-      if (cands.length === 0) return null;
-      return cands[Math.floor(Math.random() * cands.length)];
+      // Bias toward obstacles that are still ahead of the car so a green/blue marker
+      // never appears under the player.
+      const W = api.W();
+      const minWorldX = cameraX + W * 0.55;
+      const ahead = obstacles.filter(
+        (o) => o.tag === "obstacle" && o.x >= minWorldX
+      );
+      if (ahead.length > 0) {
+        return ahead[Math.floor(Math.random() * ahead.length)];
+      }
+      const any = obstacles.filter((o) => o.tag === "obstacle");
+      if (any.length === 0) return null;
+      return any[Math.floor(Math.random() * any.length)];
     }
 
     function assignPassenger() {
@@ -64,15 +141,28 @@ export const taxi: GameModule = {
     }
 
     function rebuild() {
+      // Use page-rect count purely as difficulty signal; never as obstacle position.
+      // Page text doesn't align to lanes and clusters at small x — using positions
+      // directly makes the car spawn inside obstacles and creates impossible walls.
       const rects = api.buildPageRects({ minW: 30, minH: 14 });
-      obstacles = rects.map((r) => ({ ...r, tag: "obstacle" as Tag }));
-      while (obstacles.length < 18) {
-        const o: Obstacle = {
-          x: 0, y: 0, w: 0, h: 0, hue: 0, tag: "obstacle",
-        };
-        recycle(o);
-        obstacles.push(o);
+      const target = Math.min(
+        20,
+        Math.max(INITIAL_OBSTACLES, 8 + Math.floor(rects.length / 6))
+      );
+
+      obstacles = [];
+      recentLanes.length = 0;
+      const W = api.W();
+      let cursor = cameraX + Math.max(W * 0.55, 800);
+      for (let i = 0; i < target; i++) {
+        const withinSafeStart = cursor - cameraX < SAFE_START_DIST;
+        const lane = pickLane(withinSafeStart ? targetLane : undefined);
+        rememberLane(lane);
+        obstacles.push(makeObstacle(lane, cursor));
+        cursor +=
+          SPAWN_STEP_MIN + Math.random() * (SPAWN_STEP_MAX - SPAWN_STEP_MIN);
       }
+      spawnCursor = cursor;
       assignPassenger();
     }
 
@@ -121,6 +211,12 @@ export const taxi: GameModule = {
       car.screenX = api.W() * 0.18;
       targetLane = Math.max(0, Math.min(LANES - 1, targetLane));
       car.y = laneCenterY(targetLane);
+      // Re-align all obstacle y positions and heights to the new lane geometry.
+      const newH = Math.max(20, Math.floor(laneHeight() * 0.42));
+      for (const o of obstacles) {
+        o.y = laneCenterY(o.lane);
+        o.h = newH;
+      }
     });
 
     function aabb(
@@ -128,6 +224,62 @@ export const taxi: GameModule = {
       bx: number, by: number, bw: number, bh: number
     ) {
       return ax < bx + bw && ax + aw > bx && ay < by + bh && ay + ah > by;
+    }
+
+    function drawLookahead(W: number, _H: number, now: number) {
+      // Right-edge "NEXT" panel: green = clear, red = blocked, for the next ~2s of road.
+      const previewWidth = 64;
+      const previewX = W - previewWidth - 18;
+      const lookahead = SCROLL_SPEED * 2.0;
+      const startWorld = cameraX + W;
+      const endWorld = startWorld + lookahead;
+
+      const blocked: boolean[] = new Array(LANES).fill(false);
+      for (const o of obstacles) {
+        if (o.tag !== "obstacle") continue;
+        if (o.x + o.w < startWorld || o.x > endWorld) continue;
+        blocked[o.lane] = true;
+      }
+
+      const panelY = 16;
+      const cellH = 12;
+      const cellGap = 3;
+      const panelH = LANES * (cellH + cellGap) + 20;
+      ctx.fillStyle = "rgba(0,0,0,0.45)";
+      ctx.fillRect(previewX - 6, panelY, previewWidth + 12, panelH);
+      ctx.strokeStyle = "rgba(255,255,255,0.18)";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(previewX - 6, panelY, previewWidth + 12, panelH);
+
+      ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
+      ctx.fillStyle = "rgba(255,255,255,0.7)";
+      ctx.textAlign = "left";
+      ctx.textBaseline = "alphabetic";
+      ctx.fillText("NEXT", previewX, panelY + 12);
+
+      for (let i = 0; i < LANES; i++) {
+        const cellY = panelY + 18 + i * (cellH + cellGap);
+        if (blocked[i]) {
+          ctx.fillStyle = "hsla(0, 80%, 55%, 0.75)";
+        } else {
+          const pulse = 0.55 + Math.sin(now / 280 + i * 0.4) * 0.25;
+          ctx.fillStyle = `hsla(135, 70%, 55%, ${pulse})`;
+        }
+        ctx.fillRect(previewX, cellY, previewWidth, cellH);
+        ctx.strokeStyle = "rgba(0,0,0,0.4)";
+        ctx.strokeRect(previewX + 0.5, cellY + 0.5, previewWidth - 1, cellH - 1);
+        if (i === targetLane) {
+          ctx.strokeStyle = "rgba(255, 220, 80, 0.95)";
+          ctx.lineWidth = 2;
+          ctx.strokeRect(
+            previewX - 1.5,
+            cellY - 1.5,
+            previewWidth + 3,
+            cellH + 3
+          );
+          ctx.lineWidth = 1;
+        }
+      }
     }
 
     function step(dt: number) {
@@ -192,22 +344,50 @@ export const taxi: GameModule = {
 
       ctx.clearRect(0, 0, W, H);
 
+      // Alternating lane bands so players can see exactly where each lane is.
       const laneH = H / LANES;
-      ctx.strokeStyle = "rgba(255,255,255,0.08)";
+      for (let i = 0; i < LANES; i++) {
+        ctx.fillStyle =
+          i % 2 === 0 ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.18)";
+        ctx.fillRect(0, i * laneH, W, laneH);
+      }
+
+      // Solid lane edges.
+      ctx.strokeStyle = "rgba(255,255,255,0.16)";
       ctx.lineWidth = 1;
-      ctx.setLineDash([12, 14]);
       for (let i = 1; i < LANES; i++) {
-        const ly = i * laneH;
+        const ly = Math.floor(i * laneH) + 0.5;
+        ctx.beginPath();
+        ctx.moveTo(0, ly);
+        ctx.lineTo(W, ly);
+        ctx.stroke();
+      }
+
+      // Animated dashed centerlines scrolling at camera speed.
+      const dashLen = 30;
+      const gap = 30;
+      ctx.strokeStyle = "rgba(255,255,255,0.18)";
+      ctx.setLineDash([dashLen, gap]);
+      ctx.lineDashOffset = -cameraX;
+      for (let i = 1; i < LANES; i++) {
+        const ly = Math.floor(i * laneH) + 0.5;
         ctx.beginPath();
         ctx.moveTo(0, ly);
         ctx.lineTo(W, ly);
         ctx.stroke();
       }
       ctx.setLineDash([]);
+      ctx.lineDashOffset = 0;
 
+      // Highlight the lane the car is in.
+      const carLaneY = targetLane * laneH;
+      ctx.fillStyle = "rgba(255, 216, 58, 0.06)";
+      ctx.fillRect(0, carLaneY, W, laneH);
+
+      // Obstacles
       for (const o of obstacles) {
         const screenX = o.x - cameraX;
-        if (screenX > W + 20 || screenX + o.w < -20) continue;
+        if (screenX > W + 40 || screenX + o.w < -40) continue;
         if (o.tag === "passenger") {
           const pulse = 0.55 + Math.sin(now / 220) * 0.3;
           ctx.fillStyle = `hsla(135, 80%, 55%, ${pulse})`;
@@ -215,13 +395,17 @@ export const taxi: GameModule = {
           const pulse = 0.55 + Math.sin(now / 220) * 0.3;
           ctx.fillStyle = `hsla(210, 90%, 60%, ${pulse})`;
         } else {
-          ctx.fillStyle = `hsla(${o.hue}, 55%, 50%, 0.7)`;
+          ctx.fillStyle = `hsla(${o.hue}, 55%, 50%, 0.78)`;
         }
         ctx.fillRect(screenX, o.y, o.w, o.h);
-        ctx.strokeStyle = "rgba(255,255,255,0.45)";
+        ctx.strokeStyle = "rgba(255,255,255,0.5)";
         ctx.strokeRect(screenX + 0.5, o.y + 0.5, o.w - 1, o.h - 1);
       }
 
+      // Look-ahead panel so the player can plan a lane change.
+      drawLookahead(W, H, now);
+
+      // Car
       const flicker = now < invincibleUntil && Math.floor(now / 80) % 2 === 0;
       if (!flicker) {
         ctx.fillStyle = "#ffd83a";
