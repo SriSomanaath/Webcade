@@ -1,0 +1,50 @@
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+
+body {
+  font: 13px ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  width: 280px;
+  background: #0d0d12;
+  color: #f5f5fa;
+  padding: 14px 14px 12px;
+}
+
+header { margin-bottom: 12px; }
+h1 {
+  margin: 0 0 4px;
+  font: 700 14px "Press Start 2P", ui-monospace, monospace;
+  letter-spacing: 1.5px;
+}
+header p { margin: 0; opacity: 0.7; font-size: 12px; line-height: 1.4; }
+
+#game-list {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+#game-list button {
+  all: unset;
+  cursor: pointer;
+  padding: 10px 8px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  text-align: center;
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: #f5f5fa;
+  transition: background 120ms ease, border-color 120ms ease, transform 80ms ease;
+}
+#game-list button:hover { background: rgba(255, 255, 255, 0.12); border-color: rgba(255, 255, 255, 0.2); }
+#game-list button:active { transform: translateY(1px); }
+#game-list button:focus-visible { outline: 2px solid #e4326f; outline-offset: 2px; }
+
+.hint {
+  margin: 12px 0 0;
+  font-size: 11px;
+  opacity: 0.55;
+  line-height: 1.45;
+}

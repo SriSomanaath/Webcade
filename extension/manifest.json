@@ -1,0 +1,20 @@
+{
+  "manifest_version": 3,
+  "name": "Webcade",
+  "short_name": "Webcade",
+  "version": "0.1.0",
+  "description": "Turn any webpage into an arcade game.",
+  "permissions": ["activeTab", "scripting"],
+  "action": {
+    "default_title": "Webcade — pick a game",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "32": "icons/icon-32.png",
+      "192": "icons/icon-192.png"
+    }
+  },
+  "icons": {
+    "32": "icons/icon-32.png",
+    "192": "icons/icon-192.png"
+  }
+}
