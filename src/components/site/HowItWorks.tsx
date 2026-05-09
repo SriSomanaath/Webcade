@@ -7,6 +7,7 @@ import {
   CardTitle,
 } from "@/components/ui/8bit/card";
 import { BookmarkletLink } from "./Bookmarklet";
+import { DemoVideo } from "./DemoVideo";
 
 const steps = [
   {
@@ -70,16 +71,10 @@ export function HowItWorks() {
               }}
             />
             <div className="relative aspect-video w-full overflow-hidden border-4 border-foreground/40 bg-card shadow-2xl">
-              <video
+              <DemoVideo
                 className="absolute inset-0 h-full w-full object-cover"
                 src="/demos/bricksout-demo.mp4"
-                autoPlay
-                muted
-                loop
-                playsInline
-                preload="metadata"
-                controls
-                aria-label="Webcade demo: dragging the bookmarklet and turning a webpage into Brickout"
+                ariaLabel="Webcade demo: dragging the bookmarklet and turning a webpage into Brickout"
               />
             </div>
           </div>
