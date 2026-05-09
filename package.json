@@ -13,9 +13,10 @@
     "url": "https://github.com/SriSomanaath/Webcade/issues"
   },
   "scripts": {
+    "predev": "pnpm build:bm",
     "dev": "next dev",
     "build": "pnpm build:bm && next build",
-    "build:bm": "esbuild bookmarklet/src/index.ts --bundle --minify --format=iife --target=es2019 --outfile=public/bookmarklet.js",
+    "build:bm": "esbuild bookmarklet/src/index.ts --bundle --minify --format=iife --target=es2019 --outfile=public/bookmarklet.js && node scripts/build-bookmarklet-href.mjs",
     "start": "next start",
     "lint": "eslint"
   },
