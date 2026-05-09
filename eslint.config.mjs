@@ -13,6 +13,11 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
     "public/bookmarklet.js",
+    "extension/**",
+    "tests/**",
+    "playwright.config.ts",
+    "test-results/**",
+    "playwright-report/**",
   ]),
 ]);
 
